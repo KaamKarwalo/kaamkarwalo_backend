@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const axios = require('axios');   // add at top with other imports
 require('dotenv').config();
 
 const app = express();
@@ -108,6 +109,81 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+
+
+
+// ----------------- BOOKING SCHEMA -----------------
+const bookingSchema = new mongoose.Schema({
+  customerId: String,
+  customerName: String,
+  customerPhone: String,
+  workerId: String,
+  workerName: String,
+  workerPhone: String,
+  service: String,
+  date: { type: Date, default: Date.now },
+  status: { type: String, default: "pending" },
+  paymentReceived: { type: Boolean, default: false },
+  rating: { type: Number, default: null },
+  feedback: { type: String, default: '' }
+});
+const Booking = mongoose.model('Booking', bookingSchema);
+
+// ----------------- BOOKINGS API -----------------
+app.post('/api/bookings', async (req, res) => {
+  try {
+    const booking = new Booking(req.body);
+    await booking.save();
+
+    // WhatsApp message text
+    const message = `📢 New Booking Received:
+Customer: ${booking.customerName} (${booking.customerPhone})
+Service: ${booking.service}
+Worker: ${booking.workerName} (${booking.workerPhone})
+Date: ${new Date(booking.date).toLocaleString()}`;
+
+    // Try sending WhatsApp notification
+    try {
+      await axios.post(
+        `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_ID}/messages`,
+        {
+          messaging_product: "whatsapp",
+          to: process.env.ADMIN_WHATSAPP,
+          type: "text",
+          text: { body: message }
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+      console.log("✅ WhatsApp notification sent");
+    } catch (waErr) {
+      console.error("⚠️ WhatsApp send failed:", waErr.response?.data || waErr.message);
+    }
+
+    res.json({ message: "✅ Booking saved", booking });
+  } catch (err) {
+    console.error("❌ Error saving booking:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get all bookings (for admin/worker dashboards later)
+app.get('/api/bookings', async (req, res) => {
+  try {
+    const bookings = await Booking.find();
+    res.json(bookings);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
 
 
 
