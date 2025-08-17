@@ -142,6 +142,7 @@ const bookingSchema = new mongoose.Schema({
 const Booking = mongoose.model('Booking', bookingSchema);
 
 // ----------------- BOOKINGS API -----------------
+// ----------------- BOOKINGS API -----------------
 app.post('/api/bookings', async (req, res) => {
   try {
     const booking = new Booking(req.body);
@@ -149,12 +150,12 @@ app.post('/api/bookings', async (req, res) => {
 
     // WhatsApp message text
     const message = `📢 New Booking Received:
-Customer: ${booking.customerName} (${booking.customerPhone})
-Service: ${booking.service}
-Worker: ${booking.workerName} (${booking.workerPhone})
-Date: ${new Date(booking.date).toLocaleString()}`;
+    Customer: ${booking.customerName} (${booking.customerPhone})
+    Service: ${booking.service}
+    Worker: ${booking.workerName} (${booking.workerPhone})
+    Date: ${new Date(booking.date).toLocaleString()}`;
 
-    // Try sending WhatsApp notification
+    // --- Try sending WhatsApp notification ---
     try {
       await axios.post(
         `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_ID}/messages`,
@@ -172,26 +173,28 @@ Date: ${new Date(booking.date).toLocaleString()}`;
         }
       );
       console.log("✅ WhatsApp notification sent");
-      // Send Admin Email also
-      try {
-        await transporter.sendMail({
-          from: `"KaamKarwalo" <${process.env.ADMIN_EMAIL}>`,
-          to: process.env.ADMIN_EMAIL,
-          subject: "📢 New Booking Alert",
-          text: `📢 New Booking Received!
-          Customer: ${booking.customerName} (${booking.customerPhone})
-          Service: ${booking.service}
-          Worker: ${booking.workerName} (${booking.workerPhone})
-          Date: ${new Date(booking.date).toLocaleString()}
-
-          Please check the dashboard for more details.`
-        });
-        console.log("✅ Admin email sent");
-      } catch (emailErr) {
-        console.error("❌ Failed to send admin email:", emailErr.message);
-      }
     } catch (waErr) {
       console.error("⚠️ WhatsApp send failed:", waErr.response?.data || waErr.message);
+    }
+
+    // --- Always try sending Admin Email ---
+    try {
+      await transporter.sendMail({
+        from: `"KaamKarwalo" <${process.env.ADMIN_EMAIL}>`,
+        to: process.env.ADMIN_EMAIL,
+        subject: "📢 New Booking Alert",
+        text: `📢 New Booking Received!
+
+Customer: ${booking.customerName} (${booking.customerPhone})
+Service: ${booking.service}
+Worker: ${booking.workerName} (${booking.workerPhone})
+Date: ${new Date(booking.date).toLocaleString()}
+
+Please check the dashboard for more details.`
+      });
+      console.log("✅ Admin email sent");
+    } catch (emailErr) {
+      console.error("❌ Failed to send admin email:", emailErr.message);
     }
 
     res.json({ message: "✅ Booking saved", booking });
