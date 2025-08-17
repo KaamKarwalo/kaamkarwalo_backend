@@ -2,6 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const axios = require('axios');   // add at top with other imports
+const nodemailer = require("nodemailer");
+
 require('dotenv').config();
 
 const app = express();
@@ -36,6 +38,15 @@ const userSchema = new mongoose.Schema({
 
 
 User = mongoose.model('User', userSchema);
+
+// Email transporter using Gmail SMTP
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.ADMIN_EMAIL,
+    pass: process.env.ADMIN_EMAIL_PASS
+  }
+});
 
 // API to register a user
 /*
@@ -161,6 +172,24 @@ Date: ${new Date(booking.date).toLocaleString()}`;
         }
       );
       console.log("✅ WhatsApp notification sent");
+      // Send Admin Email also
+      try {
+        await transporter.sendMail({
+          from: `"KaamKarwalo" <${process.env.ADMIN_EMAIL}>`,
+          to: process.env.ADMIN_EMAIL,
+          subject: "📢 New Booking Alert",
+          text: `📢 New Booking Received!
+          Customer: ${booking.customerName} (${booking.customerPhone})
+          Service: ${booking.service}
+          Worker: ${booking.workerName} (${booking.workerPhone})
+          Date: ${new Date(booking.date).toLocaleString()}
+
+          Please check the dashboard for more details.`
+        });
+        console.log("✅ Admin email sent");
+      } catch (emailErr) {
+        console.error("❌ Failed to send admin email:", emailErr.message);
+      }
     } catch (waErr) {
       console.error("⚠️ WhatsApp send failed:", waErr.response?.data || waErr.message);
     }
@@ -228,6 +257,10 @@ app.get('/debug-all-users', async (req, res) => {
   });
   res.send("✅ All users printed in terminal");
 });
+
+
+
+
 
 
 
