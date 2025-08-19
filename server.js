@@ -148,34 +148,43 @@ app.post('/api/bookings', async (req, res) => {
     const booking = new Booking(req.body);
     await booking.save();
 
-    // WhatsApp message text
-    const message = `📢 New Booking Received:
-    Customer: ${booking.customerName} (${booking.customerPhone})
-    Service: ${booking.service}
-    Worker: ${booking.workerName} (${booking.workerPhone})
-    Date: ${new Date(booking.date).toLocaleString()}`;
-
-    // --- Try sending WhatsApp notification ---
-    try {
-      await axios.post(
-        `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_ID}/messages`,
-        {
-          messaging_product: "whatsapp",
-          to: process.env.ADMIN_WHATSAPP,
-          type: "text",
-          text: { body: message }
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
-            "Content-Type": "application/json"
+    // --- Try sending WhatsApp notification using Template ---
+try {
+  await axios.post(
+    `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_ID}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to: process.env.ADMIN_WHATSAPP,
+      type: "template",
+      template: {
+        name: "booking_confirmation_no",   // ⚠️ Replace with your approved template name
+        language: { code: "en_US" },
+        components: [
+          {
+            type: "body",
+            parameters: [
+              { type: "text", text: booking.customerName || "Unknown" },
+              { type: "text", text: booking.service || "Not specified" },
+              { type: "text", text: booking.workerName || "Not assigned" }
+            ]
           }
-        }
-      );
-      console.log("✅ WhatsApp notification sent");
-    } catch (waErr) {
-      console.error("⚠️ WhatsApp send failed:", waErr.response?.data || waErr.message);
+        ]
+      }
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json"
+      }
     }
+  );
+  console.log("✅ WhatsApp template notification sent");
+} catch (waErr) {
+  console.error("⚠️ WhatsApp send failed:", waErr.response?.data || waErr.message);
+}
+
+
+
 
     // --- Always try sending Admin Email ---
     try {
